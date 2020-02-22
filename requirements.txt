@@ -1,2 +1,5 @@
 rpi-ws281x==4.2.3
 adafruit-circuitpython-neopixel==5.0.0
+
+
+sudo apt-get install libbluetooth-dev python-dev libglib2.0-dev libboost-python-dev libboost-thread-dev
