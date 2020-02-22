@@ -1,4 +1,5 @@
 rpi-ws281x==4.2.3
+PyBluez==0.23
 adafruit-circuitpython-neopixel==5.0.0
 
 
