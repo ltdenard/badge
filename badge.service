@@ -1,0 +1,14 @@
+[Unit]
+Description=badge
+After=network.target
+
+[Service]
+Type=simple
+Environment=PYTHONIOENCODING=utf8
+User=root
+WorkingDirectory=/home/pi/badge/
+ExecStart=/home/pi/badge/bin/python /home/pi/badge/runme.py
+Restart=on-abort
+
+[Install]
+WantedBy=multi-user.target
