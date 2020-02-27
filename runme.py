@@ -1,11 +1,13 @@
 #!/home/pi/badge/bin/python
+import os
 import time
 import board
 import neopixel
 import random
 import json
 import bluetooth
-import os
+from bluetooth.ble import DiscoveryService
+
 
 
 class BlueFinder():
@@ -13,7 +15,11 @@ class BlueFinder():
         self._numpix = 64  # Number of NeoPixels
         self._pixpin = board.D18  # Pin where NeoPixels are connected
         self._strip = neopixel.NeoPixel(self._pixpin, self._numpix, brightness=0.009, auto_write=False)
-
+        self._default_dir = "/home/pi/badge/"
+        self._ball_json = "{}balls.json".format(self._default_dir)
+        self._mac_vendors_json = "{}macaddress_rpi.json".format(self._default_dir)
+        with open(self._mac_vendors_json, 'r') as f:
+            self._mac_vendors = json.load(f)
         self._black = (0,0,0)
         self._red = (255, 0, 0)
         self._green = (0, 255, 0)
@@ -33,23 +39,20 @@ class BlueFinder():
             self._white,
             self._orange
         ]
-        self._default_color = self._black
+        self._default_color = self._green
         self._strip.fill(self._default_color)
         self._pixel_colors = {}
-        if os.path.exists('./state.json'):
-            with open('./state.json','r') as f:
-                self._pixel_colors = json.load(f)
-            for k,v in self._pixel_colors.items():
-                self._set_pixel_color(k,v,ball=False,initial=True)
-        else:
-            for n in range(0,self._numpix):
-                self._pixel_colors.update({n:self._default_color})
+        for n in range(0,self._numpix):
+            self._pixel_colors.update({n:self._default_color})
         self._balls = {}
-        if os.path.exists('./balls.json'):
-            with open('./balls.json','r') as f:
-                self._balls = json.load(f)
-            for k,v in self._balls.items():
-                self._set_pixel_color(k,v,ball=True,initial=True)
+        if os.path.exists(self._ball_json):
+            try:
+                with open(self._ball_json,'r') as f:
+                    self._balls = json.load(f)
+                for k,v in self._balls.items():
+                    self._set_pixel_color(k,v,ball=True,initial=True)
+            except:
+                os.remove(self._ball_json)
         self._strip.show()
 
     def _set_pixel_color(self,i,c,ball=False,initial=False):
@@ -61,14 +64,13 @@ class BlueFinder():
         self._strip[i] = c
         if not initial:
             self._pixel_colors[i] = c
-        with open('./state.json', 'w') as f:
-            json.dump(self._pixel_colors,f,indent=4)
         if ball:
-            with open('./balls.json', 'w') as f:
-                json.dump(self._balls,f,indent=4)
             if not initial:
                 self._balls.update({i:c})
-        # self._strip.show()
+            with open(self._ball_json, 'w') as f:
+                print("and here")
+                json.dump(self._balls,f,indent=4)
+        self._strip.show()
 
     def _get_pixel_color(self,i):
         return self._pixel_colors.get(i)
@@ -137,15 +139,37 @@ class BlueFinder():
         self._strip.show()
         time.sleep(1)
 
+    def get_mac_vendor(self, macaddr):
+        macaddr = ":".join(macaddr.split(":")[0:3])
+        mac_ven = self._mac_vendors.get(macaddr)
+        if mac_ven:
+            return mac_ven
+        return
+
+    def find_devices(self):
+        mac_addrs = []
+        nearby_devices = bluetooth.discover_devices()
+        if nearby_devices:
+            be_addrs = [addr for addr, name in nearby_devices]
+            if be_addrs:
+                mac_addrs.extend(be_addrs)
+        service = DiscoveryService()
+        devices = service.discover(2)
+        be_le_addrs =  devices.keys()
+        if be_le_addrs:
+            mac_addrs.extend(be_le_addrs)
+        if mac_addrs:
+            mac_addrs = [self.get_mac_vendor(mac_addr) for mac_addr in mac_addrs if self.get_mac_vendor(mac_addr)]
+        return mac_addrs
 
 
 def main():
     obj = BlueFinder()
     while True:
-        obj.ball_locate()
         if obj.done_check():
             obj.blink_balls()
         else:
+            obj.ball_locate()
             obj.run_radar_scan()
 
 if __name__ == '__main__':
