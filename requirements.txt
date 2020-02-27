@@ -1,12 +1,19 @@
-rpi-ws281x==4.2.3
-PyBluez==0.23
+Adafruit-Blinka==3.10.0
 adafruit-circuitpython-neopixel==5.0.0
-
-sudo apt-get install libbluetooth-dev bluez bluez-hcidump python-dev libboost-python-dev libboost-thread-dev libglib2.0-dev
-
-sudo nano /etc/dphys-swapfile
-# change to 900
-sudo /etc/init.d/dphys-swapfile stop
-sudo /etc/init.d/dphys-swapfile start
-sudo free -m
-pip install gattlib
+Adafruit-PlatformDetect==2.2.0
+Adafruit-PureIO==1.0.4
+certifi==2019.11.28
+chardet==3.0.4
+gattlib==0.20200122
+idna==2.8
+pkg-resources==0.0.0
+PyBluez==0.23
+pyftdi==0.43.0
+pyserial==3.4
+pyusb==1.0.2
+requests==2.22.0
+rpi-ws281x==4.2.3
+RPi.GPIO==0.7.0
+spidev==3.4
+sysv-ipc==1.0.1
+urllib3==1.25.8
