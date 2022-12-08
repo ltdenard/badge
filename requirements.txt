@@ -2,7 +2,7 @@ Adafruit-Blinka==3.10.0
 adafruit-circuitpython-neopixel==5.0.0
 Adafruit-PlatformDetect==2.2.0
 Adafruit-PureIO==1.0.4
-certifi==2019.11.28
+certifi==2022.12.7
 chardet==3.0.4
 gattlib==0.20200122
 idna==2.8
