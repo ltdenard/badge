@@ -113,7 +113,7 @@ class BlueFinder():
         if len(self._balls.keys()) == 7:
             return
         if str(num) in self._balls.keys() or num in self._balls.keys():
-            return self.ball_locate()
+            return self.ball_located()
         self._set_pixel_color(num,self._orange,ball=True)
         return num
 
@@ -132,13 +132,15 @@ class BlueFinder():
         self._strip.show()
         time.sleep(1)
 
-    def draw_circle_star(self, color=(255, 100, 0)):
+    def draw_circle_star(self, color=None):
+        if not color:
+            color = self._orange
         circle_star_pixels_1_indexed = [
             3, 4, 5, 6,
             10, 15,
             17, 24,
-            25, 27, 28, 32,
-            33, 35, 36, 40,
+            25, 28, 29, 32,
+            33, 36, 37, 40,
             41, 48,
             50, 55,
             59, 60, 61, 62
