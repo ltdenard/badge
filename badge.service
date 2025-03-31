@@ -7,7 +7,7 @@ Type=simple
 Environment=PYTHONIOENCODING=utf8
 User=root
 WorkingDirectory=/home/pi/badge/
-ExecStart=/home/pi/badge/bin/python /home/pi/badge/runme.py
+ExecStart=/home/pi/badge/env/bin/python /home/pi/badge/runme.py
 Restart=on-abort
 
 [Install]

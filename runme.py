@@ -1,13 +1,13 @@
-#!/home/pi/badge/bin/python
+#!/usr/bin/env python3
 import os
 import time
+import json
+import random
+# 3rd party
 import board
 import neopixel
-import random
-import json
-import bluetooth
-from bluetooth.ble import DiscoveryService
-
+import asyncio
+from bleak import BleakScanner
 
 
 class BlueFinder():
@@ -15,9 +15,15 @@ class BlueFinder():
         self._numpix = 64  # Number of NeoPixels
         self._pixpin = board.D18  # Pin where NeoPixels are connected
         self._strip = neopixel.NeoPixel(self._pixpin, self._numpix, brightness=0.009, auto_write=False)
-        self._default_dir = "/home/pi/badge/"
-        self._ball_json = "{}balls.json".format(self._default_dir)
-        self._mac_vendors_json = "{}macaddress_rpi.json".format(self._default_dir)
+        self._default_dir = os.getcwd()
+        self._ball_json = os.path.join(self._default_dir, "balls.json")
+        self._found_vendors_json = os.path.join(self._default_dir, "found_vendors.json")
+        if os.path.exists(self._found_vendors_json):
+            with open(self._found_vendors_json, 'r') as f:
+                self._found_vendors_list = json.load(f)
+        else:
+            self._found_vendors_list = []
+        self._mac_vendors_json = os.path.join(self._default_dir,"macaddress_rpi.json")
         with open(self._mac_vendors_json, 'r') as f:
             self._mac_vendors = json.load(f)
         self._black = (0,0,0)
@@ -43,14 +49,14 @@ class BlueFinder():
         self._strip.fill(self._default_color)
         self._pixel_colors = {}
         for n in range(0,self._numpix):
-            self._pixel_colors.update({n:self._default_color})
+            _ = self._pixel_colors.update({n:self._default_color})
         self._balls = {}
         if os.path.exists(self._ball_json):
             try:
                 with open(self._ball_json,'r') as f:
                     self._balls = json.load(f)
                 for k,v in self._balls.items():
-                    self._set_pixel_color(k,v,ball=True,initial=True)
+                    _ = self._set_pixel_color(k,v,ball=True,initial=True)
             except:
                 os.remove(self._ball_json)
         self._strip.show()
@@ -60,7 +66,6 @@ class BlueFinder():
             i = int(i)
         if isinstance(c,list):
             c = tuple(c)
-        print(i,c)
         self._strip[i] = c
         if not initial:
             self._pixel_colors[i] = c
@@ -68,61 +73,49 @@ class BlueFinder():
             if not initial:
                 self._balls.update({i:c})
             with open(self._ball_json, 'w') as f:
-                print("and here")
                 json.dump(self._balls,f,indent=4)
         self._strip.show()
 
     def _get_pixel_color(self,i):
         return self._pixel_colors.get(i)
 
-    def run_radar_scan(self):
-        first = [4,12,20,28]
-        second = [28,21,14,7]
-        third = [28,29,30,31]
-        fourth = [36,45,54,63]
-        fifth = [36,44,52,60]
-        sixth = [35,42,49,56]
-        seventh = [35,34,33,32]
-        eighth = [27,18,9,0]
-        nineth = [27,19,11,3]
-        cycles = [first,second,third,fourth,fifth,sixth,seventh,eighth,nineth]
-        for cycle in cycles:
-            for i in cycle:
-                if i not in self._balls.keys():
-                    self._set_pixel_color(i,self._yellow)
-            self._strip.show()
-            time.sleep(1)
-            for i in cycle:
-                if i not in self._balls.keys():
-                    self._set_pixel_color(i,self._default_color)
-            self._strip.show()
-            time.sleep(1)
-
-    def run_radar_red(self):
+    def run_radar_scan(self, scan_color=None):
+        if not scan_color:
+            scan_color = self._white
         first = [27,28,35,36]
         second = [18,19,20,21,26,29,34,37,42,43,44,45]
         third = [9,10,11,12,13,14,17,22,25,30,33,38,41,46,49,50,51,52,53,54]
         fourth = [0,1,2,3,4,5,6,7,8,15,16,23,24,31,32,39,40,47,48,55,56,57,58,59,60,61,62,63]
-        cycles = [first,second,third,fourth]
+        cycles = [
+            first,
+            second,
+            third,
+            fourth,
+        ]
         for cycle in cycles:
             for i in cycle:
-                if i not in self._balls.keys():
-                    self._set_pixel_color(i,self._red)
-            self._strip.show()
-            time.sleep(1)
+                if str(i) not in self._balls.keys() and i not in self._balls.keys():
+                    _ = self._set_pixel_color(i,scan_color)
+                else:
+                    print(f"Skipping Dragon Ball: {i}")
+            _ = self._strip.show()
+            time.sleep(0.4)
             for i in cycle:
-                if i not in self._balls.keys():
-                    self._set_pixel_color(i,self._default_color)
-            self._strip.show()
-            time.sleep(1)
+                if str(i) not in self._balls.keys() and i not in self._balls.keys():
+                    _ = self._set_pixel_color(i,self._default_color)
+                else:
+                    print(f"Skipping Dragon Ball: {i}")
+            _ = self._strip.show()
+            time.sleep(0.4)
 
-    def ball_locate(self):
-        num = random.randint(0,63)
+    def ball_located(self):
+        num = random.choice([27,28,29,35,36,37,43,44,45])
         if len(self._balls.keys()) == 7:
             return
-        if num in self._balls.keys():
-            self.ball_locate()
+        if str(num) in self._balls.keys() or num in self._balls.keys():
+            return self.ball_locate()
         self._set_pixel_color(num,self._orange,ball=True)
+        return num
 
     def done_check(self):
         if len(self._balls.keys()) == 7:
@@ -139,6 +132,35 @@ class BlueFinder():
         self._strip.show()
         time.sleep(1)
 
+    def draw_circle_star(self, color=(255, 100, 0)):
+        circle_star_pixels_1_indexed = [
+            3, 4, 5, 6,
+            10, 15,
+            17, 24,
+            25, 27, 28, 32,
+            33, 35, 36, 40,
+            41, 48,
+            50, 55,
+            59, 60, 61, 62
+        ]
+        # Convert 1-indexed to 0-indexed
+        pixels = [i - 1 for i in circle_star_pixels_1_indexed]
+        self._strip.fill((0, 0, 0))  # Clear display
+        for i in pixels:
+            self._strip[i] = color
+        self._strip.show()
+
+    def reset_balls(self):
+        self._balls = {}
+        self._pixel_colors = {n: self._default_color for n in range(self._numpix)}
+        self._strip.fill(self._default_color)
+        self._strip.show()
+        if os.path.exists(self._ball_json):
+            os.remove(self._ball_json)
+        self._found_vendors_list = []
+        if os.path.exists(self._found_vendors_json):
+            os.remove(self._found_vendors_json)
+
     def get_mac_vendor(self, macaddr):
         macaddr = ":".join(macaddr.split(":")[0:3])
         mac_ven = self._mac_vendors.get(macaddr)
@@ -146,31 +168,52 @@ class BlueFinder():
             return mac_ven
         return
 
+    def record_mac_vendor(self):
+        if self._found_vendors_list:
+            with open(self._found_vendors_json, 'w') as f:
+                json.dump(self._found_vendors_list,f,indent=4)
+        return
+
     def find_devices(self):
         mac_addrs = []
-        nearby_devices = bluetooth.discover_devices()
-        if nearby_devices:
-            be_addrs = [addr for addr, name in nearby_devices]
-            if be_addrs:
-                mac_addrs.extend(be_addrs)
-        service = DiscoveryService()
-        devices = service.discover(2)
-        be_le_addrs =  devices.keys()
-        if be_le_addrs:
-            mac_addrs.extend(be_le_addrs)
-        if mac_addrs:
-            mac_addrs = [self.get_mac_vendor(mac_addr) for mac_addr in mac_addrs if self.get_mac_vendor(mac_addr)]
+        async def scan_ble():
+            devices = await BleakScanner.discover(timeout=2.0)
+            return devices
+        devices = asyncio.run(scan_ble())
+        for device in devices:
+            vendor = self.get_mac_vendor(device.address)
+            if vendor:
+                mac_addrs.append(vendor)
         return mac_addrs
 
+    def run_sweep(self):
+        print(f"Current Ball Locations: {list(self._balls.keys())}")
+        devices_found = self.find_devices()
+        print("Starting radar scan...")
+        _ = self.run_radar_scan()
+        print(f"Found {len(devices_found)} devices...")
+        if devices_found:
+            unique_devices_list = list(set(devices_found))
+            for device in unique_devices_list:
+                if device not in self._found_vendors_list:
+                    print(f"New Device Found: {device}")
+                    self._found_vendors_list.append(device)
+                    pixel_num = self.ball_located()
+                    print(f"Pixel Number Set: {pixel_num}")
+            _ = self.record_mac_vendor()
+            _ = self.blink_balls()
+        print(f"Balls found: {len(list(self._balls.keys()))}")
+        time.sleep(10)
 
 def main():
     obj = BlueFinder()
     while True:
         if obj.done_check():
-            obj.blink_balls()
+            obj.draw_circle_star()
+            time.sleep(120)
+            obj.reset_balls()
         else:
-            obj.ball_locate()
-            obj.run_radar_scan()
+            obj.run_sweep()
 
 if __name__ == '__main__':
     main()
